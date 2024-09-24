@@ -457,6 +457,8 @@ name = "shuttle_axum_getting_started"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
