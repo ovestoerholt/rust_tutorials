@@ -31,6 +31,12 @@ Open a Postgres terminal:
 psql postgres postgres
 ```
 
+After creating database `sqlx_postgres_ticket`
+
+```sh
+psql sqlx_postgres_ticket postgres
+```
+
 Where the first `postgres`is the database and the second `postgres`is the username (specified in the docker-compose.yml)
 
 Then enter the following SQL statement:

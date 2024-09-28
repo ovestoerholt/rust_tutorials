@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'jeremy_chone_sqlx_postgres'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=jeremy_chone_sqlx_postgres",
+                    "--package=jeremy_chone_sqlx_postgres"
+                ],
+                "filter": {
+                    "name": "jeremy_chone_sqlx_postgres",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'jeremy_chone_sqlx_postgres'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=jeremy_chone_sqlx_postgres",
+                    "--package=jeremy_chone_sqlx_postgres"
+                ],
+                "filter": {
+                    "name": "jeremy_chone_sqlx_postgres",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
