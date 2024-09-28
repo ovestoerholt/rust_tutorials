@@ -1,6 +1,12 @@
 use sqlx::postgres::{PgPoolOptions, PgRow};
 use sqlx::{FromRow, Row};
 
+#[derive(Debug, FromRow)]
+struct Ticket {
+    id: i64,
+    name: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
     // 1) Create a connection pool
@@ -67,8 +73,21 @@ async fn main() -> Result<(), sqlx::Error> {
     println!("Result: {}", str_result);
 
     // 5) Select query with map() (build the ticket manually)
+    let select_query = sqlx::query("SELECT id, name FROM ticket");
+    let tickets: Vec<Ticket> = select_query
+        .map(|row: PgRow| Ticket {
+            id: row.get("id"),
+            name: row.get("name"),
+        })
+        .fetch_all(&pool)
+        .await?;
+
+    println!("\n=== select tickets with query.map...:===\n{:?}", tickets);
 
     // 6) Select query_as (using derive FromRow)
+    let select_query_as = sqlx::query_as::<_, Ticket>("SELECT id, name FROM ticket");
+    let tickets: Vec<Ticket> = select_query_as.fetch_all(&pool).await?;
+    println!("\n=== select tickets with query_as...:===\n{:?}", tickets);
 
     Ok(())
 }
