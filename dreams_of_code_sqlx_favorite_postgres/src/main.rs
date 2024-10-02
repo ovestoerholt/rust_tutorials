@@ -1,6 +1,8 @@
 use std::error::Error;
+use sqlx::Row;
 use tokio;
 
+#[derive(Debug)]
 struct Book {
     pub title: String,
     pub author: String,
@@ -33,6 +35,24 @@ async fn update(book: &Book, isbn: &str, pool: &sqlx::PgPool) -> Result<(), Box<
     Ok(())
 }
 
+async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Book, Box<dyn Error>> {
+    //let q = "SELECT (title, author, isbn) FROM book WHERE isbn = '978-0-385-00751-1'";
+    let query = "SELECT title, author, isbn FROM book WHERE isbn = $1";
+
+    let row = sqlx::query(query)
+        .bind(isbn)
+        .fetch_one(pool)
+        .await?;
+
+    let book = Book {
+        title: row.try_get("title")?,
+        author: row.try_get("author")?,
+        isbn: row.try_get("isbn")?,
+    };
+
+    Ok(book)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let url = "postgres://postgres:postgres@localhost:5432/bookstore";
@@ -48,13 +68,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     //create(&book, &pool).await?;
 
-    let updated_book = Book {
-        title: "Salem's lot".to_string(),
-        author: "Stephen Edvin King".to_string(),
-        isbn: "978-0-385-00751-1".to_string(),
-    };
+    //let updated_book = Book {
+    //    title: "Salem's lot".to_string(),
+    //    author: "Stephen Edvin King".to_string(),
+    //    isbn: "978-0-385-00751-1".to_string(),
+    //};
+    //
+    //update(&updated_book, &updated_book.isbn, &pool).await?;
 
-    update(&updated_book, &updated_book.isbn, &pool).await?;
+    let book = fetch_one("978-0-385-00751-1", &pool).await?;
+
+    println!("{:#?}", book);  // Pretty-prints with indentation
 
     Ok(())
 }

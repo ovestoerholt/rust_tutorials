@@ -319,3 +319,72 @@ Then modify your program code to update instead of adding:
 
 Check the results using `psql` terminal.
 
+
+### Fetching data
+
+#### fetch_one
+
+Add the following function:
+
+```Rust
+async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Book, Box<dyn Error>> {
+    //let q = "SELECT (title, author, isbn) FROM book WHERE isbn = '978-0-385-00751-1'";
+    let query = "SELECT title, author, isbn FROM book WHERE isbn = $1";
+
+    let row = sqlx::query(query)
+        .bind(isbn)
+        .fetch_one(pool)
+        .await?;
+
+    let book = Book {
+        title: row.try_get("title")?,
+        author: row.try_get("author")?,
+        isbn: row.try_get("isbn")?,
+    };
+
+    Ok(book)
+}
+```
+
+Then comment out the part of your program updating the Stephen King record:
+
+```Rust
+    //let updated_book = Book {
+    //    title: "Salem's lot".to_string(),
+    //    author: "Stephen Edvin King".to_string(),
+    //    isbn: "978-0-385-00751-1".to_string(),
+    //};
+    //
+    //update(&updated_book, &updated_book.isbn, &pool).await?;
+
+    let book = fetch_one("978-0-385-00751-1", &pool).await?;
+
+    println!("{:#?}", book);  // Pretty-prints with indentation
+```
+
+Also; add the `Debug` trait to the `Book` struct to enable printing the struct content.
+
+```Rust
+#[derive(Debug)]
+struct Book {
+    pub title: String,
+    pub author: String,
+    pub isbn: String
+}
+```
+
+At last; make sure you import the `Row` trait:
+
+```Rust
+use sqlx::Row;
+```
+
+Run your program. You should see the following output:
+
+```text
+Book {
+    title: "Salem's lot",
+    author: "Stephen Edvin King",
+    isbn: "978-0-385-00751-1",
+}
+```
