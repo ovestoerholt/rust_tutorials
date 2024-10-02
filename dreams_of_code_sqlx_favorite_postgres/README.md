@@ -219,3 +219,61 @@ This command adds a file `build.rs` to your project folder.
 The build-script is for running migrations when you have only modified SQL files and not Rust code.
 
 
+### Add data
+
+Create a struct with the same data as we have in our `book` table:
+
+```Rust
+struct Book {
+    pub title: String,
+    pub author: String,
+    pub isbn: String
+}
+```
+
+Also add a function to insert a book into the `book` table:
+
+```Rust
+async fn create(book: &Book, pool: &sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+    let query = "INSERT INTO book (title, author, isbn) VALUES ($1, $2, $3)";
+    
+    sqlx::query(query)
+        .bind(&book.title)
+        .bind(&book.author)
+        .bind(&book.isbn)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+```
+
+At last add the following lines of code below the statement running migrations and before returning `OK(())` (remove the lines related to sum calculations)
+
+```Rust
+    let book = Book {
+        title: "Salem's lot".to_string(),
+        author: "Stephen King".to_string(),
+        isbn: "978-0-385-00751-1".to_string(),
+    };
+
+    create(&book, &pool).await?;
+```
+
+Run the program. 
+
+After running observe the changes in the `psql` terminal session using the following command:
+
+```sh
+bookstore=# SELECT * FROM book;
+```
+
+You should see the following:
+
+```text
+    title    |    author    |       isbn        
+-------------+--------------+-------------------
+ Salem's lot | Stephen King | 978-0-385-00751-1
+(1 row)
+```
+

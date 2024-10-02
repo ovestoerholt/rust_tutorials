@@ -1,6 +1,24 @@
 use std::error::Error;
-use sqlx::Row;
 use tokio;
+
+struct Book {
+    pub title: String,
+    pub author: String,
+    pub isbn: String
+}
+
+async fn create(book: &Book, pool: &sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+    let query = "INSERT INTO book (title, author, isbn) VALUES ($1, $2, $3)";
+    
+    sqlx::query(query)
+        .bind(&book.title)
+        .bind(&book.author)
+        .bind(&book.isbn)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -9,12 +27,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let res = sqlx::query("SELECT 1 + 1 AS sum")
-        .fetch_one(&pool)
-        .await?;
+    let book = Book {
+        title: "Salem's lot".to_string(),
+        author: "Stephen King".to_string(),
+        isbn: "978-0-385-00751-1".to_string(),
+    };
 
-    let sum: i32 = res.get("sum");
-    println!("1 + 1 = {}", sum);
+    create(&book, &pool).await?;
 
     Ok(())
 }
