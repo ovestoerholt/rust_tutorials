@@ -38,3 +38,19 @@ cargo add sqlx --features postgres
 
 Then run `cargo check` to make sure everything installs correctly.
 
+### Add async main
+
+```Rust
+use std::error::Error;
+use tokio;
+
+#[tokio::main]
+async fn main -> Result<(), Box<dyn Error>> {
+    println!("Hello world!");
+    Ok(())
+}
+```
+
+Your code will have an error since there is no async code. Hang on...
+
+
