@@ -209,3 +209,13 @@ cargo install sqlx-cli
 After the command is available using the `sqlx` command from a terminal.
 
 #### Add buildscript
+
+```sh
+sqlx migrate build-script
+```
+
+This command adds a file `build.rs` to your project folder. 
+
+The build-script is for running migrations when you have only modified SQL files and not Rust code.
+
+
