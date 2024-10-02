@@ -277,3 +277,45 @@ You should see the following:
 (1 row)
 ```
 
+
+### Updating data
+
+Add a function to update the book entry:
+
+```Rust
+async fn update(book: &Book, isbn: &str, pool: &sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+    let query = "UPDATE book SET title = $1, author = $2 WHERE isbn = $3";
+    
+    sqlx::query(query)
+        .bind(&book.title)
+        .bind(&book.author)
+        .bind(&isbn)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+```
+
+Then modify your program code to update instead of adding:
+
+```Rust
+    //let book = Book {
+    //    title: "Salem's lot".to_string(),
+    //    author: "Stephen King".to_string(),
+    //    isbn: "978-0-385-00751-1".to_string(),
+    //};
+    //
+    //create(&book, &pool).await?;
+
+    let updated_book = Book {
+        title: "Salem's lot".to_string(),
+        author: "Stephen Edvin King".to_string(),
+        isbn: "978-0-385-00751-1".to_string(),
+    };
+
+    update(&updated_book, &updated_book.isbn, &pool).await?;
+```
+
+Check the results using `psql` terminal.
+
