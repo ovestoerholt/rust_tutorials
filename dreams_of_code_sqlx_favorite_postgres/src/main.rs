@@ -54,6 +54,35 @@ async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Option<Book>, Box<
     Ok(book)
 }
 
+async fn fetch_all(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
+    let query = "SELECT title, author, isbn FROM book";
+
+    let rows = sqlx::query(query)
+        .fetch_all(pool)
+        .await?;
+
+    let books = rows.iter().map(|row| {
+        Book {
+            title: row.get("title"),
+            author: row.get("author"),
+            isbn: row.get("isbn"),
+        }
+    }).collect();
+
+    Ok(books)
+}
+
+
+fn book_1() -> Book {
+    Book { 
+        title: "Rust Programming".to_string(),
+        author: "Steve Klabnik".to_string(),
+        isbn: "1234567890".to_string(),    
+    }
+}
+
+
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let url = "postgres://postgres:postgres@localhost:5432/bookstore";
@@ -77,9 +106,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     //update(&updated_book, &updated_book.isbn, &pool).await?;
 
-    let book = fetch_one("978-0-385-00751-1-1", &pool).await?;
+    create(&book_1(), &pool).await?;
 
-    println!("{:#?}", book);  // Pretty-prints with indentation
+    let books = fetch_all(&pool).await?;
+
+    println!("{:#?}", books);  // Pretty-prints with indentation
 
     Ok(())
 }

@@ -448,4 +448,64 @@ None
 
 Fetches all records matching the query and returns them as a vector that can be iterated.
 
+Add another function fetch_all:
+
+```Rust
+async fn fetch_all(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
+    let query = "SELECT title, author, isbn FROM book";
+
+    let rows = sqlx::query(query)
+        .fetch_all(pool)
+        .await?;
+
+    let books = rows.iter().map(|row| {
+        Book {
+            title: row.get("title"),
+            author: row.get("author"),
+            isbn: row.get("isbn"),
+        }
+    }).collect();
+
+    Ok(books)
+}
+```
+
+Add this function to create another book instance:
+
+```Rust
+fn book_1() -> Book {
+    Book { 
+        title: "Rust Programming".to_string(),
+        author: "Steve Klabnik".to_string(),
+        isbn: "1234567890".to_string(),    
+    }
+}
+```
+
+Then; modify your program to create one more book and then fetch all:
+
+```Rust
+    create(&book_1(), &pool).await?;
+
+    let books = fetch_all(&pool).await?;
+```
+
+When running the program you should see the following output:
+
+```Text
+[
+    Book {
+        title: "Salem's lot",
+        author: "Stephen Edvin King",
+        isbn: "978-0-385-00751-1",
+    },
+    Book {
+        title: "Rust Programming",
+        author: "Steve Klabnik",
+        isbn: "1234567890",
+    },
+]
+```
+
+
 #### fetch
