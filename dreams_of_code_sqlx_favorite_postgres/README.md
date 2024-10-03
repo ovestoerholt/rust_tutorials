@@ -509,3 +509,74 @@ When running the program you should see the following output:
 
 
 #### fetch
+
+Fetches all matching documents just like `fetch_all`, but as a stream-like type. This is a better solution when working with a larger dataset.
+
+Create a new function `fetch` with the following content:
+
+```Rust
+async fn fetch(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
+    let q = "SELECT title, author, isbn FROM book";
+
+    let query = sqlx::query(q);
+
+    let mut rows = query.fetch(pool);
+        
+    let mut books = vec![];
+
+    while let Some(row) = rows.try_next().await? {
+        books.push(
+            Book {
+                title: row.get("title"),
+                author: row.get("author"),
+                isbn: row.get("isbn"),
+            }
+        );
+    }
+
+    Ok(books)
+}
+```
+
+Modify your program to not create another book (since this will create an error trying to insert something that's already there),
+and call the new function instead:
+
+```Rust
+//create(&book_1(), &pool).await?;
+
+let books = fetch(&pool).await?;
+```
+
+Also you need to modify your `cargo.toml` file to include the `futures` trait. 
+
+Add it either by running the command:
+
+```sh
+cargo add futures
+```
+
+Or by editing `Cargo.toml` adding:
+
+```toml
+futures = "0.3.30"
+```
+
+to the `[dependencies]` section.
+
+
+Run your program. As before you should see:
+
+```Text
+[
+    Book {
+        title: "Salem's lot",
+        author: "Stephen Edvin King",
+        isbn: "978-0-385-00751-1",
+    },
+    Book {
+        title: "Rust Programming",
+        author: "Steve Klabnik",
+        isbn: "1234567890",
+    },
+]
+```

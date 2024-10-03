@@ -1,4 +1,5 @@
 use std::error::Error;
+use futures::TryStreamExt;
 use sqlx::Row;
 use tokio;
 
@@ -73,6 +74,29 @@ async fn fetch_all(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
 }
 
 
+async fn fetch(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
+    let q = "SELECT title, author, isbn FROM book";
+
+    let query = sqlx::query(q);
+
+    let mut rows = query.fetch(pool);
+        
+    let mut books = vec![];
+
+    while let Some(row) = rows.try_next().await? {
+        books.push(
+            Book {
+                title: row.get("title"),
+                author: row.get("author"),
+                isbn: row.get("isbn"),
+            }
+        );
+    }
+
+    Ok(books)
+}
+
+
 fn book_1() -> Book {
     Book { 
         title: "Rust Programming".to_string(),
@@ -106,9 +130,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     //update(&updated_book, &updated_book.isbn, &pool).await?;
 
-    create(&book_1(), &pool).await?;
+    //create(&book_1(), &pool).await?;
 
-    let books = fetch_all(&pool).await?;
+    let books = fetch(&pool).await?;
 
     println!("{:#?}", books);  // Pretty-prints with indentation
 
