@@ -322,9 +322,18 @@ Check the results using `psql` terminal.
 
 ### Fetching data
 
+There are 4 functions available to us for fetching data:
+- fetch_one
+- fetch_optional
+- fetch_all
+- fetch
+
+
 #### fetch_one
 
 Add the following function:
+
+`fetch_one` is used for pulling a single row out of the database.
 
 ```Rust
 async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Book, Box<dyn Error>> {
@@ -388,3 +397,55 @@ Book {
     isbn: "978-0-385-00751-1",
 }
 ```
+
+
+#### fetch_optional
+
+Much like `fetch`, but returning an `Option` (eg. returning `Option.None` if the query fails).
+
+Modify your fetch_one function as follows:
+
+```Rust
+async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Option<Book>, Box<dyn Error>> {
+    let query = "SELECT title, author, isbn FROM book WHERE isbn = $1";
+
+    let maybe_row = sqlx::query(query)
+        .bind(isbn)
+        .fetch_optional(pool)
+        .await?;
+
+    let book = maybe_row.map(|row| {
+        Book {
+            title: row.get("title"),
+            author: row.get("author"),
+            isbn: row.get("isbn"),
+        }
+    });
+
+    Ok(book)
+}
+```
+
+When running the code, if the record was found, you should see this output:
+
+```Text
+Some(
+    Book {
+        title: "Salem's lot",
+        author: "Stephen Edvin King",
+        isbn: "978-0-385-00751-1",
+    },
+)
+```
+
+If the record was not found you should see this:
+
+```Text
+None
+```
+
+#### fetch_all
+
+Fetches all records matching the query and returns them as a vector that can be iterated.
+
+#### fetch

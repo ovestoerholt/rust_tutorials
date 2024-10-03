@@ -35,20 +35,21 @@ async fn update(book: &Book, isbn: &str, pool: &sqlx::PgPool) -> Result<(), Box<
     Ok(())
 }
 
-async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Book, Box<dyn Error>> {
-    //let q = "SELECT (title, author, isbn) FROM book WHERE isbn = '978-0-385-00751-1'";
+async fn fetch_one(isbn: &str, pool: &sqlx::PgPool) -> Result<Option<Book>, Box<dyn Error>> {
     let query = "SELECT title, author, isbn FROM book WHERE isbn = $1";
 
-    let row = sqlx::query(query)
+    let maybe_row = sqlx::query(query)
         .bind(isbn)
-        .fetch_one(pool)
+        .fetch_optional(pool)
         .await?;
 
-    let book = Book {
-        title: row.try_get("title")?,
-        author: row.try_get("author")?,
-        isbn: row.try_get("isbn")?,
-    };
+    let book = maybe_row.map(|row| {
+        Book {
+            title: row.get("title"),
+            author: row.get("author"),
+            isbn: row.get("isbn"),
+        }
+    });
 
     Ok(book)
 }
@@ -76,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     //update(&updated_book, &updated_book.isbn, &pool).await?;
 
-    let book = fetch_one("978-0-385-00751-1", &pool).await?;
+    let book = fetch_one("978-0-385-00751-1-1", &pool).await?;
 
     println!("{:#?}", book);  // Pretty-prints with indentation
 
