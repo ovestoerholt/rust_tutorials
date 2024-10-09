@@ -502,3 +502,89 @@ async fn delete_task(
 ```
 
 After making the edits, run your program and your should be able to create, get, update and delete tasks.
+
+
+## Better partial update/patch
+
+We have some conflicting SQL statements when trying to update a task.
+
+Updating name:
+```SQL
+UPDATE tasks SET 
+name = $2
+WHERE id = $1
+```
+
+Updating priority:
+```SQL
+UPDATE tasks SET 
+priority = $3
+WHERE id = $1
+```
+
+Update both:
+```SQL
+UPDATE tasks SET 
+name = $2,
+priority = $3
+WHERE id = $1
+```
+
+Update none:
+```SQL
+UPDATE tasks SET 
+WHERE id = $1
+```
+
+Instead of trying to compose the correct SQL query we instead use the `query` function instead of the `macro`.
+
+Modify your `update` as follows:
+
+```Rust
+async fn update_task(
+    State(pg_pool): State<PgPool>,
+    Path(id): Path<i32>,
+    Json(task): Json<UpdateTaskReq>,
+) -> Result<(StatusCode, String), (StatusCode, String)> {
+
+    let mut query = "UPDATE tasks SET id = $1".to_owned();
+
+    let mut i = 2;
+
+    if task.name.is_some() {
+        query.push_str(&format!(", name = ${i}"));
+        i += 1;
+    }
+
+    if task.priority.is_some() {
+        query.push_str(&format!(", priority = ${i}"));
+    }
+
+    query.push_str(&format!(" WHERE id = $1"));
+
+    let mut s = sqlx::query(&query).bind(id);
+
+    if task.name.is_some() {
+        s = s.bind(task.name);
+    }
+    if task.priority.is_some() {
+        s = s.bind(task.priority);
+    }
+
+    s.execute(&pg_pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({ "success" : false, "message" : e.to_string() }).to_string(),
+        )
+    })?;
+
+    Ok((
+        StatusCode::OK, 
+        json!({ "success" : true }).to_string()
+    ))
+}
+```
+
+What this function does is composing the SQL from whatever you feed it through the `UpdateTaskReq` struct.

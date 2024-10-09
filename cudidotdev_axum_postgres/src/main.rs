@@ -123,18 +123,32 @@ async fn update_task(
     Path(id): Path<i32>,
     Json(task): Json<UpdateTaskReq>,
 ) -> Result<(StatusCode, String), (StatusCode, String)> {
-    sqlx::query!(
-        "
-        UPDATE tasks SET 
-        name = $2,
-        priority = $3
-        WHERE id = $1
-        ",
-        id,
-        task.name,
-        task.priority
-    )
-    .execute(&pg_pool)
+
+    let mut query = "UPDATE tasks SET id = $1".to_owned();
+
+    let mut i = 2;
+
+    if task.name.is_some() {
+        query.push_str(&format!(", name = ${i}"));
+        i += 1;
+    }
+
+    if task.priority.is_some() {
+        query.push_str(&format!(", priority = ${i}"));
+    }
+
+    query.push_str(&format!(" WHERE id = $1"));
+
+    let mut s = sqlx::query(&query).bind(id);
+
+    if task.name.is_some() {
+        s = s.bind(task.name);
+    }
+    if task.priority.is_some() {
+        s = s.bind(task.priority);
+    }
+
+    s.execute(&pg_pool)
     .await
     .map_err(|e| {
         (
@@ -142,7 +156,11 @@ async fn update_task(
             json!({ "success" : false, "message" : e.to_string() }).to_string(),
         )
     })?;
-    Ok((StatusCode::OK, json!({ "success": true, }).to_string()))
+
+    Ok((
+        StatusCode::OK, 
+        json!({ "success" : true }).to_string()
+    ))
 }
 
 
