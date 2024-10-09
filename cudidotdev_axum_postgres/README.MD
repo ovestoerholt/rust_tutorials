@@ -156,3 +156,110 @@ cargo add axum
 
 ## Add `tasks` table (first SQLx migration)
 
+### Install `sqlx-cli`
+
+The SQLx CLI tool helps you operate database in context of your project.
+
+To install:
+
+```sh
+cargo install sqlx-cli
+```
+
+After the command is available using the `sqlx` command from a terminal.
+
+The sqlx CLI will read the .env file in your project to determine the database connection settings. By default, it looks for the DATABASE_URL environment variable in your .env file, which should contain the connection string for your database. If the DATABASE_URL is properly set, sqlx will use it to connect to your database.
+
+
+We will add all database tables etc. using `SQLx migrations`.
+
+### Create the `migrations` folder
+
+With a terminal opened in the project root, use the following command:
+
+```sh
+mkdir migrations
+```
+
+### Create the migration files
+
+Inside the `migrations`folder create a file called `0001_add_tasks_table.sql`
+
+Edit the newly created file by adding the following SQL statement:
+
+```sql
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    priority INT
+);
+```
+
+For every `migration` there should be `down-migration`. 
+
+Inside the `migrations`folder create a file called `0001_add_tasks_table.down.sql`
+
+Edit the newly created file by adding the following SQL statement:
+
+```sql
+DROP TABLE tasks;
+```
+
+You can now run the `migrations` using the `sqlx` CLI.
+
+Run all available migrations (from current level and up):
+```sh
+sqlx migrate run
+```
+
+And to revert (one by one):
+```sh
+sqlx migrate revert
+```
+
+Observe changes to the tables fx. in `Azure Data Studio`
+
+
+### Run migrations when running your program
+
+#### Add buildscript
+
+```sh
+sqlx migrate build-script
+```
+
+This command adds a file `build.rs` to your project folder. 
+
+The build-script is for running migrations when you have only modified SQL files and not Rust code.
+
+
+#### Add running migrations code to the `main.rs` file
+
+```Rust
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    dotenv().ok();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set");
+    println!("DATABASE_URL: {}", database_url);
+
+    // Create database connections pool
+    let pool = sqlx::postgres::PgPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to the database");
+
+    // Run existing database migrations
+    sqlx::migrate!("./migrations").run(&pool)
+        .await
+        .expect("Failed to run migrations...");
+
+    Ok(())
+}
+```
+
+If either connecting to the database or running the migrations fails the program will abort early. You can test this by fx. rename the `DATABASE_URL` variable in your code to something bogus. 
+
+Running the program will then (for example) exit (panic) with the following error message:
+
+```Text
+Failed to connect to the database: Configuration(RelativeUrlWithoutBase)
+```
