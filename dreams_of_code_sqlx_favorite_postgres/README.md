@@ -580,3 +580,210 @@ Run your program. As before you should see:
     },
 ]
 ```
+
+
+#### query_as
+
+SQLx can also help you converting row data into concrete types using `query_as`. For this to work the struct needs to derive the `FrownRow` on our Book struct.
+
+```Rust
+#[derive(Debug, FromRow)]
+struct Book {
+    pub title: String,
+    pub author: String,
+    pub isbn: String
+}
+```
+
+We then have to modify our function to use `query_as` instead of `query` and reference the struct (Book) we want to turn the data into.
+
+```Rust
+async fn fetch(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
+    let q = "SELECT title, author, isbn FROM book";
+
+    let query = sqlx::query_as::<_, Book>(q);
+
+    let books = query.fetch_all(pool).await?;
+        
+    Ok(books)
+}
+```
+
+
+
+### Transactions
+
+SQLx supports transactions, as shown in example below where we insert an author as part of inserting a book.
+
+```Rust
+async fn insert_book(
+    book: Book, 
+    conn: &sqlx::PgPool,
+) -> Result<(), sqlx::Error> {
+    let mut txn = conn.begin().await?;
+
+    let author_q = r"
+    INSERT INTO author (name) VALUES ($1) RETURNING id
+    ";
+
+    let book_q = r"
+    INSERT INTO book (title, author_id, isbn)
+    VALUES ($1, $2, $3)
+    ";
+
+    let author_id: (i64,) = sqlx::query_as(author_q)
+        .bind(&book.author)
+        .fetch_one(&mut *txn)
+        .await?;
+
+    sqlx::query(book_q)
+        .bind(&book.title)
+        .bind(&author_id.0)
+        .bind(&book.isbn)
+        .execute(&mut *txn)
+        .await?;
+
+    // Commit transaction
+    txn.commit().await?;
+
+    // Or rollback if needed
+    //txn.rollback().await?;
+
+    Ok(())
+}
+```
+
+Since we're now referencing two tables (`book` and `authors`) we have to migrate our database to a new revision.
+
+Create file `0003_migrate_author_data.sql` in the `migrations` folder with the following content:
+
+```SQL
+ALTER TABLE book
+ADD COLUMN author_id INT,
+ADD CONSTRAINT fk_author
+FOREIGN KEY (author_id) REFERENCES authors(id);
+
+-- Insert unique authors into authors table
+INSERT INTO authors (name)
+SELECT DISTINCT author
+FROM book;
+
+-- Update the book table to point to the correct author_id
+UPDATE book
+SET author_id = a.id
+FROM authors a
+WHERE book.author = a.name;
+
+-- Drop the old author column from book
+ALTER TABLE book
+DROP COLUMN IF EXISTS author;
+```
+
+Also create file `0003_migrate_author_data.down.sql` for migrating back. 
+
+Note that files for reverting to previous version of database uses the same name but with the `down` "middle name".
+
+The command for triggering a SQLx migration revert is:
+
+```sh
+sqlx migrate revert
+```
+
+Add the following content to this file:
+
+```SQL
+-- Re-add the author column to the book table
+ALTER TABLE book
+ADD COLUMN IF NOT EXISTS author TEXT;
+
+-- Populate the author column with the concatenated names from authors
+UPDATE book
+SET author = a.name
+FROM authors a
+WHERE book.author_id = a.id;
+
+-- Drop constraint on author
+ALTER TABLE book
+DROP CONSTRAINT fk_author;
+
+-- Delete the inserted authors if they were created solely for this migration
+DELETE FROM authors
+WHERE id IN (
+    SELECT DISTINCT author_id FROM book
+);
+
+-- Drop the foreign key constraint and the author_id column
+ALTER TABLE book
+DROP COLUMN author_id;
+```
+
+Modify your `fetch` function like this:
+
+```Rust
+async fn fetch(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
+    let q = r"
+    SELECT 
+        book.title as title,
+        book.isbn as isbn,
+        authors.name as author
+    FROM 
+        book
+    JOIN 
+        authors ON book.author_id = authors.id;
+    ";
+
+    let query = sqlx::query_as::<_, Book>(q);
+
+    let books = query.fetch_all(pool).await?;
+        
+    Ok(books)
+}
+```
+
+
+Modify your `main.rs` to call the new transactional book insert:
+
+```Rust
+async fn main() -> Result<(), Box<dyn Error>> {
+    let url = "postgres://postgres:postgres@localhost:5432/bookstore";
+    let pool = sqlx::postgres::PgPool::connect(url).await?;
+
+    sqlx::migrate!("./migrations").run(&pool).await?;
+
+    let book = Book {
+        title: "Rust for Rustaceans: Idiomatic Programming for Experienced Developers".to_string(),
+        author: "Jon Gjengset".to_string(),
+        isbn: "978-1-718-50185-0".to_string(),
+    };
+
+    let books = fetch(&pool).await?;
+
+    println!("{:#?}", books);  // Pretty-prints with indentation
+
+    Ok(())
+}
+```
+
+
+Run your program. After the output from the fetch should be:
+
+
+```JSON
+[
+    Book {
+        title: "Salem's lot",
+        author: "Stephen King",
+        isbn: "978-0-385-00751-1",
+    },
+    Book {
+        title: "Rust Programming",
+        author: "Steve Klabnik",
+        isbn: "978-1-593-27828-1",
+    },
+    Book {
+        title: "Rust for Rustaceans: Idiomatic Programming for Experienced Developers",
+        author: "Jon Gjengset",
+        isbn: "978-1-718-50185-0",
+    },
+]
+```

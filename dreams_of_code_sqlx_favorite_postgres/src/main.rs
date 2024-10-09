@@ -1,9 +1,8 @@
 use std::error::Error;
-use futures::TryStreamExt;
-use sqlx::Row;
+use sqlx::{prelude::FromRow, Row};
 use tokio;
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 struct Book {
     pub title: String,
     pub author: String,
@@ -74,27 +73,26 @@ async fn fetch_all(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
 }
 
 
+
 async fn fetch(pool: &sqlx::PgPool) -> Result<Vec<Book>, Box<dyn Error>> {
-    let q = "SELECT title, author, isbn FROM book";
+    let q = r"
+    SELECT 
+        book.title as title,
+        book.isbn as isbn,
+        authors.name as author
+    FROM 
+        book
+    JOIN 
+        authors ON book.author_id = authors.id;
+    ";
 
-    let query = sqlx::query(q);
+    let query = sqlx::query_as::<_, Book>(q);
 
-    let mut rows = query.fetch(pool);
+    let books = query.fetch_all(pool).await?;
         
-    let mut books = vec![];
-
-    while let Some(row) = rows.try_next().await? {
-        books.push(
-            Book {
-                title: row.get("title"),
-                author: row.get("author"),
-                isbn: row.get("isbn"),
-            }
-        );
-    }
-
     Ok(books)
 }
+
 
 
 fn book_1() -> Book {
@@ -104,6 +102,44 @@ fn book_1() -> Book {
         isbn: "1234567890".to_string(),    
     }
 }
+
+
+async fn insert_book(
+    book: Book, 
+    conn: &sqlx::PgPool,
+) -> Result<(), sqlx::Error> {
+    let mut txn = conn.begin().await?;
+
+    let author_q = r"
+    INSERT INTO authors (name) VALUES ($1) RETURNING id
+    ";
+
+    let book_q = r"
+    INSERT INTO book (title, author_id, isbn)
+    VALUES ($1, $2, $3)
+    ";
+
+    let author_id: (i32,) = sqlx::query_as(author_q)
+        .bind(&book.author)
+        .fetch_one(&mut *txn)
+        .await?;
+
+    sqlx::query(book_q)
+        .bind(&book.title)
+        .bind(&author_id.0)
+        .bind(&book.isbn)
+        .execute(&mut *txn)
+        .await?;
+
+    // Commit transaction
+    txn.commit().await?;
+
+    // Or rollback if needed
+    //txn.rollback().await?;
+
+    Ok(())
+}
+
 
 
 
@@ -131,6 +167,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //update(&updated_book, &updated_book.isbn, &pool).await?;
 
     //create(&book_1(), &pool).await?;
+
+    let book = Book {
+        title: "Rust for Rustaceans: Idiomatic Programming for Experienced Developers".to_string(),
+        author: "Jon Gjengset".to_string(),
+        isbn: "978-1-718-50185-0".to_string(),
+    };
+
+    //insert_book(book, &pool).await?;
 
     let books = fetch(&pool).await?;
 
