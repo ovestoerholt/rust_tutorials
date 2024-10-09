@@ -55,19 +55,19 @@ Add this to the `[dependencies]` section of `cargo.toml`
 
 ```toml
 [dependencies]
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 ```
 
 or; add by command
 
 ```sh
-cargo add dotenv
+cargo add dotenvy
 ```
 
 #### Modify your `main.rs` file
 
 ```rust
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use std::env;
 
 fn main() {
@@ -153,6 +153,44 @@ Or use the Cargo CLI:
 cargo add axum
 ```
 
+#### Serde
+
+Serde is a framework for serializing and deserializing Rust data structures efficiently and generically.
+
+Edit manually:
+
+```toml
+[dependencies]
+serde = { version = "1.0.210", features = ["derive"] }
+```
+
+Or use the Cargo CLI:
+
+```sh
+cargo add serde --features derive
+```
+
+The `derive` feature will add support for serialization/deserialization annotations to structs.
+
+
+#### serde_json
+
+Edit manually:
+
+```toml
+[dependencies]
+serde_json = "1.0.128"
+```
+
+Or use the Cargo CLI:
+
+```sh
+cargo add serde_json
+```
+
+
+
+
 
 ## Add `tasks` table (first SQLx migration)
 
@@ -236,6 +274,9 @@ The build-script is for running migrations when you have only modified SQL files
 #### Add running migrations code to the `main.rs` file
 
 ```Rust
+use dotenvy::dotenv;
+use std::{env, error::Error};
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
@@ -253,8 +294,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("Failed to run migrations...");
 
     Ok(())
-}
-```
+}```
 
 If either connecting to the database or running the migrations fails the program will abort early. You can test this by fx. rename the `DATABASE_URL` variable in your code to something bogus. 
 
@@ -263,3 +303,5 @@ Running the program will then (for example) exit (panic) with the following erro
 ```Text
 Failed to connect to the database: Configuration(RelativeUrlWithoutBase)
 ```
+
+
