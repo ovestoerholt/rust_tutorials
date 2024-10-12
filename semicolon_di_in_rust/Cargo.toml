@@ -1,0 +1,10 @@
+[package]
+name = "semicolon_di_in_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.7"
+serde = { version = "1.0.210", features = ["derive"] }
+tokio = { version = "1.40.0", features = ["full"] }
+uuid = { version = "1.10.0", features = ["serde", "v4"] }
