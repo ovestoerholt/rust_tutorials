@@ -68,3 +68,25 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 ```
+
+
+## Set up a clean architecture project structure
+
+In the same folder as your `main.rs`, generate a `lib.rs` file with the following content:
+
+```rust
+pub mod api;
+pub mod domain;
+pub mod application;
+pub mod infrastructure;
+```
+
+Then create the folder structure. In the folder where main.rs and lib.rs files are present, create the following folders:
+- api (route, routes, handlers)
+- domain (models, entities)
+- application (logic for commands and queries)
+- infrastructure (data layer, repositories)
+
+Inside each of these folders create a file `mod.rs`.
+
+
