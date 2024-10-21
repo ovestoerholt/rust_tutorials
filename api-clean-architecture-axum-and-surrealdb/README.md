@@ -161,5 +161,107 @@ pub struct Todo {
     pub createdAt: Option<DateTime<Local>>,
     pub updatedAt: Option<DateTime<Local>>,
 }
-````
+```
 
+
+## Commands vs Queries
+
+`CQRS`, or `Command Query Responsibility Segregation`, is a software architectural pattern that simplifies the complexity of managing data by dividing, the application into two distinct parts: `commands` and `queries`.
+
+In simpler terms, it separates the responsibility of updating data (commands) from the responsibility of retrieving data (queries).
+This segregation allows for tailored optimization of each part independently, enhancing scalability and performance.
+With CQRS your can design your system to handle write operations differenctly from read operations. providing flexibility and efficiency in managing and retrieving data based on specific use cases.
+
+### The first command
+
+In the `application` layer module (application/mod.rs) declare modules for commands and queries.
+
+```rust
+pub mod commands;
+pub mod queries;
+```
+
+Establish these modules as subfolders to the `application` folder.
+
+Declare our first command `create_todo_command`: 
+
+```rust
+// application/commands/create_todo_command.rs
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use chrono::Local;
+
+use crate::domain::models::todo::Todo;
+
+pub async fn create_todo_command(
+    Json(mut body): Json<Todo>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let datetime = Local::now();
+
+    body.id = Some("some-id".to_string());
+    body.completed = Some(false);
+    body.createdAt = Some(datetime);
+    body.updatedAt = Some(datetime);
+
+    let todo = body.to_owned();
+
+    let json_response = serde_json::json!({
+        "status": "success".to_string(),
+        "data": todo,
+    });
+
+    Ok((StatusCode::CREATED, Json(json_response)))
+}
+```
+
+In the module `commands/mod.rs` declare the new command:
+
+```rust
+// application/commands/mod.rs
+pub module create_todo_command;
+```
+
+Then modify your `routes.rs` to include a route to the new command:
+
+```rust
+use axum::{
+    routing::{get, post},
+    Router,
+};
+
+use crate::application::commands::create_todo_command::create_todo_command;
+
+use super::health_checker_handler;
+
+pub fn create_router() -> Router {
+    Router::new()
+        .route("/api/healthchecker", get(health_checker_handler))
+        .route("/api/todos", post(create_todo_command))
+}
+```
+
+Run your program and test adding a todo by creating a `POST` request to `http://localhost/api/todos`
+
+Add the following body to your request:
+
+```json
+{
+    "title" : "Do this",
+    "content" : "Do that"
+}
+```
+
+The response will be something like:
+
+```json
+{
+    "data": {
+        "completed": false,
+        "content": "Do that",
+        "createdAt": "2024-10-21T09:41:12.213102+02:00",
+        "id": "some-id",
+        "title": "Do this",
+        "updatedAt": "2024-10-21T09:41:12.213102+02:00"
+    },
+    "status": "success"
+}
+```
