@@ -90,3 +90,46 @@ Then create the folder structure. In the folder where main.rs and lib.rs files a
 Inside each of these folders create a file `mod.rs`.
 
 
+## The router and first route
+
+Add the following content to the `api/mod.rs` file:
+
+```rust
+use axum::{Json, response::IntoResponse};
+
+pub mod router;
+
+pub async fn health_checker_handler() -> impl IntoResponse {
+    const MESSAGE: &str = "Working fine, thanks!";
+
+    let json_response = serde_json::json!({
+        "status": "success",
+        "message": MESSAGE
+    });
+
+    Json(json_response)
+}
+```
+
+In the `api` folder create the `router` module as a file `router.rs` with the following content:
+
+```rust
+use axum::{
+    routing::get,
+    Router,
+};
+
+use super::health_checker_handler;
+
+pub fn create_router() -> Router {
+    Router::new()
+        .route("/api/healthchecker", get(health_checker_handler))
+}
+```
+
+After open your `main.rs` and import your `create_router` function.
+
+Now run your program and test connecting to `http://localhost:3000/api/healthchecker`.
+
+
+## The Domain Model

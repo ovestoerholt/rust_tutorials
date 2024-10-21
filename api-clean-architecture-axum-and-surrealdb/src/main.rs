@@ -1,3 +1,4 @@
+use api_clean_architecture_axum_and_surrealdb::api::router::create_router;
 use axum::http::{HeaderValue, Method};
 use axum::http::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
 use tower_http::cors::CorsLayer;
