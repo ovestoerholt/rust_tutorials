@@ -326,3 +326,68 @@ Create the modules as folders:
 - repositoroes/mod.rs
 
 
+## The DB Context
+
+### Add crate `once_cell` to project
+We need to add one more depdendency before we can continue:
+
+```sh
+cargo add once_cell
+```
+
+From (crates.io)[https://crates.io/crates/once_cell]:
+`once_cell` provides two new cell-like types:
+- unsync::OnceCell 
+- sync::OnceCell 
+
+OnceCell might store arbitrary non-Copy types, can be assigned to at most once and provide direct access to the stored contents.
+
+
+### Create db context for SurrealDB
+
+In `db_context/mod.rs` declare module `surreal_context`.
+
+```rust
+// db_context/mod.rs
+pub mod surreal_context;
+```
+
+Create module `surreal_context` as a file `surreal_context.rs` and add the following content:
+
+```rust
+use once_cell::sync::Lazy;
+use surrealdb::{
+    engine::remote::ws::{Client, Ws},
+    opt::auth::Root,
+    Result, Surreal,
+};
+
+pub static DB: Lazy<Surreal<Client>> = Lazy::new(Surreal::init);
+
+pub async fn connect_db() -> Result<()> {
+    let _ = DB.connect::<Ws>("localhost:8000").await?;
+    let _ = DB
+        .signin(Root {
+            username: "root",
+            password: "root",
+        })
+        .await;
+    let _ = DB.use_ns("todo").use_db("todo").await?;
+    Ok(())
+}
+```
+
+Also call the `connect_db` function from `main.rs`:
+
+```rust
+    ...
+    let app = create_router().layer(cors);
+
+    connect_db().await.unwrap();
+
+    println!("🚀 Server started successfully");
+    ...
+```
+
+Make sure the SurrealDb Docker image is running and start your server program. If the server starts without panicing all is ok!
+

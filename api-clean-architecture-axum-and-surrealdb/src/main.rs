@@ -1,4 +1,5 @@
 use api_clean_architecture_axum_and_surrealdb::api::router::create_router;
+use api_clean_architecture_axum_and_surrealdb::infrastructure::db_context::surreal_context::connect_db;
 use axum::http::{HeaderValue, Method};
 use axum::http::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
 use tower_http::cors::CorsLayer;
@@ -12,6 +13,8 @@ async fn main() {
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
     let app = create_router().layer(cors);
+
+    connect_db().await.unwrap();
 
     println!("🚀 Server started successfully");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
