@@ -305,3 +305,24 @@ DB_PASSWORD=root
 ```sh
 cargo add surrealdb
 ```
+
+
+
+## The infrastructure layer
+
+### Infrastructure layer structure
+
+In the `infrastructure/mod.rs` file declare the following modules:
+
+```rust
+// infrastructure/mod.rs
+
+pub mod db_context;
+pub mod repositories;
+```
+
+Create the modules as folders:
+- db_context/mod.rs
+- repositoroes/mod.rs
+
+
