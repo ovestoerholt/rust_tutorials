@@ -265,3 +265,43 @@ The response will be something like:
     "status": "success"
 }
 ```
+
+
+## Implementing SurrealDB on the Project
+
+### Run SurrealDB as a Docker instance
+
+This project uses a SurrealDB in-memory database as storage.
+
+
+Add a `docker-compose.yml` file with the following content to the root of your project:
+
+```yml
+services:
+  surrealdb:
+    env_file:
+      - .env
+    entrypoint: 
+      - /surreal 
+      - start 
+      - --user
+      - $DB_USER
+      - --pass
+      - $DB_PASSWORD
+    image: surrealdb/surrealdb:latest
+    ports:
+      - 8000:8000
+```
+
+Also add a `.env` file with the following content:
+
+```text
+DB_USER=root
+DB_PASSWORD=root
+```
+
+### Add SurrealDB dependency
+
+```sh
+cargo add surrealdb
+```
