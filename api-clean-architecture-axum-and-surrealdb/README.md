@@ -133,3 +133,33 @@ Now run your program and test connecting to `http://localhost:3000/api/healthche
 
 
 ## The Domain Model
+
+Navigate to `domain/mod.rs` and declare the models module. Create the module in `models/mod.rs`, then declare and craft our Todo model as follows:
+
+```rust
+// domain/mod.rs
+pub mod models;
+```
+
+```rust
+// domain/models/mod.rs
+pub mod todo;
+```
+
+```rust
+// domain/models/todo.rs
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Todo {
+    pub id: Option<String>,
+    pub title: String,
+    pub content: String,
+    pub completed: Option<bool>,
+    pub createdAt: Option<DateTime<Local>>,
+    pub updatedAt: Option<DateTime<Local>>,
+}
+````
+
