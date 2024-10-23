@@ -391,3 +391,148 @@ Also call the `connect_db` function from `main.rs`:
 
 Make sure the SurrealDb Docker image is running and start your server program. If the server starts without panicing all is ok!
 
+
+## The repository
+
+In the `repositories/mod.rs` declare the module `todo_repository` 
+
+```rust
+// repositories/mod.rs
+
+pub mod todo_repository;
+```
+as a file `todo_repository.rs` with the following content:
+
+```rust
+// todo_repository.rs
+
+pub struct TodoRepository {
+    table: String,
+}
+
+impl TodoRepository {
+    pub fn new() -> Self {
+        TodoRepository {
+            table: String::from("todo"),
+        }
+    }
+}
+```
+
+
+### Add methods
+
+#### get_all
+
+Add the following function to the `todo_repository.rs` file as part of the `impl TodoRepository`block.
+
+```rust
+pub async fn get_all(&self) -> Result<Vec<Todo>, Error> {
+    let records = DB.select(&self.table).await?;
+    Ok(records)
+}
+```
+
+You will be asked to import (use) the following:
+- crate::domain::models::todo::Todo, 
+- crate::infrastructure::db_context::surreal_context::DB
+- surrealdb::Error;
+
+
+#### get_by_id
+
+Add the following function to the `todo_repository.rs` file as part of the `impl TodoRepository`block.
+
+```rust
+pub async fn get_by_id(&self, id: String) -> Result<Todo, Error> {
+    if let Some(record) = DB.select((&self.table, id.clone())).await? {
+        return Ok(record);
+    }
+
+    let error = Error::Db(
+        Thrown(
+            format!("Todo with id {} not found", id)
+        )
+    );
+    Err(error)
+}
+```
+
+#### create_todo
+
+```rust
+    pub async fn create_todo(&self, content: Todo) -> Result<Option<Todo>, Error> {
+        let record = DB.create(&self.table).content(content).await?;
+        Ok(record)
+    }
+```
+
+
+Also, modify your `create_todo_command.rs` to this:
+
+```rust
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use chrono::Local;
+
+use crate::{domain::models::todo::Todo, infrastructure::repositories::todo_repository::TodoRepository};
+
+pub async fn create_todo_command(
+    Json(mut body): Json<Todo>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let repository = TodoRepository::new();
+    
+    if let Ok(todo) = repository.get_by_title(body.title.clone()).await {
+        let json_response = serde_json::json!({
+            "status": "error",
+            "message": "Todo already exists",
+            "data": todo,
+        });
+
+        return Err((StatusCode::BAD_REQUEST, Json(json_response)));
+    }
+
+    let datetime = Local::now();
+    body.completed = Some(false);
+    body.createdAt = Some(datetime);
+    body.updatedAt = Some(datetime);
+
+    let todo = body.to_owned();
+
+    let todo = repository.create_todo(todo.clone()).await;
+
+    match todo {
+        Ok(_) => {
+            let json_response = serde_json::json!({
+                "status": "success",
+                "data": todo,
+            });
+        
+            Ok((StatusCode::CREATED, Json(json_response)))
+        },
+        Err(err) => {
+            let json_response = serde_json::json!({
+                "status": "error",
+                "data": err,
+            });
+        
+            Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(json_response)))
+        },
+    }
+}
+```
+
+
+Restart the app/server and try to make a `post` request against `http://localhost:8080/api/todos` with the following content:
+
+```json
+{
+    "_id" : "do_this_or_die_in_the_attempt",
+    "title" : "Do this, or die in the attempt",
+    "content" : "Do that",
+    "completed" : false
+}
+```
+
+Server is not working!
+
+TODO: Need to verify the server methods more after having learned about SurrealDB
